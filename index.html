@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>油工院综测分数可视化</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--ink:#19233a;--muted:#64748b;--line:#dce3ee;--blue:#2859be;--light:#eef4ff;--warn:#9a5a13}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,"Microsoft YaHei",sans-serif}
+.wrap{max-width:1140px;margin:30px auto;padding:0 18px 40px}h1{font-size:27px;margin:0 0 5px}.intro,.hint{color:var(--muted);margin:0 0 18px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:19px;margin-bottom:16px;box-shadow:0 3px 14px #1b376008}
+.toolbar,.flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.toolbar{justify-content:space-between}.grow{flex:1;min-width:185px}
+label{display:block;font-size:13px;color:var(--muted)}label strong{display:block;margin-bottom:5px;color:var(--ink)}
+input,select,button,textarea{font:inherit}input,select,textarea{border:1px solid var(--line);background:white;color:var(--ink);border-radius:9px;padding:9px 11px;width:100%}
+button,.file-label{border:1px solid var(--line);background:white;color:var(--ink);border-radius:9px;padding:9px 13px;cursor:pointer;white-space:nowrap}
+button:hover,.file-label:hover{border-color:var(--blue);background:var(--light)}button.primary{background:var(--blue);border-color:var(--blue);color:white}
+button.small{font-size:13px;padding:7px 10px}button.danger{color:#a52727}.file-label{font-size:14px}
+.scoretop{display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap}.total{font-size:35px;font-weight:760;line-height:1.2}
+.scale{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin:16px 0 6px}.bar{display:flex;height:96px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.seg{position:relative;min-width:0;border:0;border-right:1px solid var(--line);border-radius:0;padding:8px 5px;text-align:left;background:transparent;white-space:normal;overflow:visible}.seg:first-child{border-radius:9px 0 0 9px}.seg:last-child{border:0;border-radius:0 9px 9px 0}
+.seg.active{outline:2px solid var(--blue);outline-offset:-2px;z-index:2}.fill{position:absolute;inset:0 auto 0 0;opacity:.28;pointer-events:none}.segtext{position:relative;z-index:1;display:block;overflow:hidden;text-overflow:ellipsis;line-height:1.3;font-size:12px;font-weight:650}.segscore{position:relative;z-index:1;color:#4b5563;font-size:11px}.tip{display:none;position:absolute;z-index:10;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);width:240px;white-space:normal;pointer-events:none;padding:11px;background:white;border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 28px #1018282b;font-size:12px;font-weight:400}.seg:hover .tip,.seg:focus-visible .tip{display:block}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(270px,.75fr);gap:16px}.titleline{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.titleline h2{margin:0;font-size:19px}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:18px 0 13px}.tabs button.active{background:var(--light);border-color:var(--blue);color:var(--blue);font-weight:700}.subtabs{margin:9px 0 16px;padding-left:10px;border-left:3px solid var(--blue)}
+.sectionline{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0}.sectionline strong{font-size:14px}
+.entry{border:1px solid var(--line);background:#fcfdff;border-radius:10px;padding:13px;margin:10px 0}.entryhead{display:flex;align-items:baseline;justify-content:space-between;gap:9px;margin-bottom:10px}.entryhead strong{font-size:14px}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.formgrid .wide{grid-column:1/-1}.check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink)}.check input{width:auto}
+.metric{font-size:14px;color:var(--blue);font-weight:700}.note{font-size:13px;color:var(--muted);margin-top:10px}.warn{color:var(--warn)}
+.rulelist{padding-left:20px;margin:12px 0}.rulelist li{margin-bottom:9px}.breakdown{padding:10px 12px;border-radius:9px;background:var(--light);font-size:13px;margin-top:12px;white-space:pre-line}
+details summary{cursor:pointer;font-weight:650}.advanced{margin-top:8px}.advanced textarea{height:130px;font:12px/1.5 ui-monospace,monospace;margin:10px 0}
+@media(max-width:780px){.two{grid-template-columns:1fr}.wrap{margin-top:18px}.bar{height:105px}.tip{left:0;transform:none}.formgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main class="wrap">
+<h1>石工院综测分数可视化</h1>
+<p class="intro">选中长条中的项目，在下方逐项添加成果。分数依照细则估算，最终以学院审核为准。</p>
+<section class="panel toolbar">
+  <label class="grow"><strong>评分模板</strong><select id="preset"><option value="y2a">研二 · 学硕</option><option value="y2p">研二 · 专硕</option><option value="y3a">研三 · 学硕</option><option value="y3p">研三 · 专硕</option></select></label>
+  <div class="flex"><button id="reset" type="button">清空当前模板</button><button id="backup" type="button">下载数据备份</button><label class="file-label" for="restore">导入备份</label><input id="restore" type="file" accept=".json,application/json" hidden></div>
+</section>
+<section class="panel">
+ <div class="scoretop"><div><div class="hint" style="margin:0">当前总分</div><div><span id="total" class="total">0.00</span> <span class="hint">/ 100</span></div></div><div id="summary" class="hint"></div></div>
+ <div class="scale"><span>0</span><span>100</span></div><div class="bar" id="bar" aria-label="综测得分组成"></div>
+ <div class="note">色块宽度表示项目上限，颜色深浅表示已得分。悬停查看摘要，点击查看分项。</div>
+</section>
+<div class="two">
+ <section class="panel"><div class="titleline"><h2 id="itemTitle"></h2><strong id="itemScore" class="metric"></strong></div><div id="itemContent"></div></section>
+ <section class="panel"><h2 style="margin:0;font-size:19px">分项细则与上限</h2><div id="rules"></div><div id="breakdown" class="breakdown"></div></section>
+</div>
+<details class="panel advanced"><summary>自定义项目和权重（JSON）</summary>
+ <p class="note">保留原版导入功能：数组的每项写 name、max、details；自定义项目按分项手动记分。导入会替换当前模板的项目布局。</p>
+ <textarea id="config" spellcheck="false"></textarea>
+ <div class="flex"><button id="applyConfig" type="button">应用到当前模板</button><button id="showConfig" type="button">显示当前配置</button><span id="message" class="note" role="status"></span></div>
+</details>
+<p class="note" id="storageStatus" role="status"></p>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const clone=x=>JSON.parse(JSON.stringify(x));
+const money=n=>(Math.round((Number(n)||0)*100)/100).toFixed(2);
+const safe=(v,max)=>Math.min(max,Math.max(0,Number(v)||0));
+const groups={
+ ethics:{name:'德育及文化体育',max:30,kind:'ethics',details:['德育素质五项合计17分；文化体育素质包括文艺、体育、荣誉称号和媒体撰稿，合计13分。','文艺活动与体育活动分别记录，但两项合计最多7分；两类未获奖参与分别最多1.5分。','参加或获奖的同一活动只按最高层次认定，且须符合活动备案和主办、承办、参赛单位条件。'],leaves:[
+  ['守法诚信',1,'由辅导员酌情认定，最高1分。'],['组织生活与集体活动',7,'按出勤与请销假情况核定，最高7分。'],['服从安排',2,'由辅导员等认定，最高2分。'],['学生干部',5,'岗位考核0—4、0—3、0—2或0—1分，可兼任累计，最高5分。'],['治学与合作',2,'导师及指导小组酌情认定，最高2分。'],
+ ]},
+ course:{name:'课程学习',max:38.5,kind:'course',details:['课程成绩赋分＝研究生部核算的“最终课程学习分”×0.35÷0.7，最多35分。','英语六级≥425才计分：六级分数÷710×3.5；俄语、日语≥60，按对应考试满分折算。取最高有效成绩，只选一种语言。']},
+ language:{name:'外语六级',max:3.5,kind:'language',details:['英语六级成绩≥425才计分，按考试分数÷710×3.5折算。','俄语、日语成绩≥60方有效，按相应考试满分折算；只选一种语言。']},
+ research2:{name:'学术成果',max:22,kind:'research',details:['研二学硕学术成果合计上限22分。','论文与专利须符合署名、第一单位、导师共同署名等认定条件；下方仅估算符合条件的成果。']},
+ research3:{name:'学术成果',max:36,kind:'research',details:['研三学硕学术成果合计上限36分。','论文、专利、软著的特殊子项上限同样适用。']},
+ contest2:{name:'学科竞赛',max:8,kind:'contest',details:['研二学硕竞赛大项上限8分；各赛事具体得分按学院表1。','同一关联赛事仅按最高层次认定，团队有效名次与备案等条件须满足。']},
+ contest3:{name:'学科竞赛',max:16,kind:'contest',details:['研三学硕竞赛大项上限16分；评分标准与研二可能不同。','示例：中国石油工程设计大赛卓越杯16分、一等奖12分、二等奖8分、三等奖4分。']},
+ combined2:{name:'学术成果 + 学科竞赛',max:30,kind:'combined',details:['研二专硕的学术成果与学科竞赛合计上限30分。','论文、专利、软著分别按细则计分，实用新型上限6分，软著上限2分。']},
+ combined3:{name:'学术成果 + 学科竞赛',max:45,kind:'combined',details:['研三专硕的学术成果与学科竞赛合计上限45分。','同一专利公开与授权只保留最高有效阶段，不可重复计分。']},
+ exchange2:{name:'学术交流',max:1.5,kind:'exchange',details:['国际会议报告或宣读论文1.5分/次，国内1分/次，院内主讲0.5分/次。','须满足会议证明、宣读资料或院内报告审批要求。']},
+ exchange3:{name:'学术交流',max:4.5,kind:'exchange',details:['国际会议报告或宣读论文3分/次，国内2分/次，院内主讲1.5分/次。','此项最高4.5分，按符合认定条件的记录累计。']},
+ thesis:{name:'学位论文',max:10,kind:'leaves',details:['中期材料规范最高3.5分；考核优秀6.5分、合格4分、不合格0分。'],leaves:[['材料规范',3.5,'由中期考核小组评分。'],['中期考核',6.5,'优秀6.5分、合格4分、不合格0分；按实际结论填写。']]},
+ practice:{name:'专业实践 + 学位论文',max:17,kind:'leaves',details:['专业实践：开展情况按基地及其他类别分别6.5、3.5或0分，背景材料规范最高3.5分；合计最多10分。','论文材料规范最高2.5分；考核优秀4.5分、合格3分、不合格0分。'],leaves:[['专业实践开展情况',6.5,'校院级基地且累计超过6个月6.5分；其他合规实践单位3.5分；无实践单位0分。'],['专业实践材料',3.5,'材料齐全、规范最高3.5分，由学院核定。'],['论文中期材料',2.5,'材料齐全及规范程度，最高2.5分。'],['论文中期结果',4.5,'优秀4.5分、合格3分、不合格0分。']]}
+};
+const presets={y2a:['ethics','course','research2','contest2','exchange2'],y2p:['ethics','course','combined2','exchange2'],y3a:['ethics','language','research3','contest3','exchange3','thesis'],y3p:['ethics','language','combined3','exchange3','practice']};
+const papers=[
+ ['SCI 一区（非开源）',22],['SCI 一区（开源）',20],['SCI 二区（非开源）',18],['SCI 二区（开源）',16],['SCI 三区（非开源）',14],['SCI 三区（开源）',10],['SCI 四区（非开源）',10],['SCI 四区（开源）',7],
+ ['EI 期刊（中文）',12],['EI 期刊（英文非开源）',8],['EI 期刊（英文开源）',5],['CSCD 核心库',8],['CSCD 扩展库',6],['中国科技核心',5],['SPE 会议论文',8],['SCI/EI 会议论文（非 SPE）',5],['外文普刊',4]
+];
+const patentOptions=[['发明专利·公开',1,4],['发明专利·公开',2,3],['发明专利·公开',3,2],['发明专利·授权',1,12],['发明专利·授权',2,10],['发明专利·授权',3,8],['实用新型·授权',1,3],['实用新型·授权',2,3],['国际专利·授权',1,4],['国际专利·授权',2,4]];
+const contestDesign={2:[['卓越杯',8],['一等奖',6],['二等奖',3],['三等奖',2],['鼓励奖',1.5],['成功参赛奖',1]],3:[['卓越杯',16],['一等奖',12],['二等奖',8],['三等奖',4],['鼓励奖',2.5],['成功参赛奖',2]]};
+const contestCatalog={
+ design:['中国石油工程设计大赛（专业设计）',{2:contestDesign[2],3:contestDesign[3]}],
+ designQuiz:['中国石油工程设计大赛（知识竞赛）',{2:[['一等奖',6],['二等奖',3],['三等奖',2],['优胜奖',1.5]],3:[['一等奖',12],['二等奖',8],['三等奖',4],['优胜奖',3]]}],
+ storage:['全国大学生油气储运工程设计大赛',{2:[['特等奖',6],['一等奖',4],['二等奖',2.5],['三等奖',1.5],['成功参赛奖',1]],3:[['特等奖',12],['一等奖',8],['二等奖',4],['三等奖',2],['成功参赛奖',1]]}],
+ oceanQuiz:['中国海洋工程设计大赛（知识竞赛）',{2:[['海洋杯',6],['一等奖',4],['二等奖',2.5],['三等奖',1.5],['鼓励奖',1]],3:[['海洋杯',12],['一等奖',8],['二等奖',4],['三等奖',2],['鼓励奖',1]]}],
+ spe:['SPE学生论文、知识及技能竞赛',{2:[['地区奖或国际奖',8],['国内一等奖及以上',6],['国内二等奖',3],['国内三等奖',2],['成功参与奖及以上',1]],3:[['地区奖或国际奖',16],['国内一等奖及以上',10],['国内二等奖',6],['国内三等奖',3],['成功参与奖',1]]}],
+ english:['全国大学生英语竞赛',{2:[['国家一等奖',4],['国家二等奖',3],['国家三等奖',2.5],['校级一等奖',2],['校级二等奖',1],['校级三等奖',.5]],3:[['国家一等奖',6],['国家二等奖',4],['国家三等奖',3],['校级一等奖',2],['校级二等奖',1],['校级三等奖',.5]]}],
+ internet:['“互联网+”大学生创新创业大赛',{2:[['国家金奖',8],['国家银奖',7],['国家铜奖',6],['省金奖',5],['省银奖',4],['省铜奖',3],['菁英奖',2],['校级二等奖及以上',1.5],['校级优秀奖及以上',1]],3:[['国家金奖',16],['国家银奖',14],['国家铜奖',12],['省金奖',10],['省银奖',7],['省铜奖',3.5],['菁英奖',3],['校级二等奖及以上',2],['校级优秀奖及以上',1]]}],
+ challenge:['“挑战杯”课外科技作品竞赛',{2:[['国家特等奖',8],['国家一等奖',7],['国家二等奖',6.5],['国家三等奖',6],['省金奖',5],['省银奖',4],['省铜奖',3],['校级二等奖及以上',1.5],['校级优秀奖及以上',1]],3:[['国家特等奖',16],['国家一等奖',15],['国家二等奖',13],['国家三等奖',12],['省金奖',10],['省银奖',7],['省铜奖',3.5],['校级二等奖及以上',2],['校级优秀奖及以上',1]]}],
+ mathCN:['中国研究生数学建模竞赛',{2:[['一等奖',6],['二等奖',3],['三等奖',2]],3:[['一等奖',9],['二等奖',5.5],['三等奖',2.5]]}],
+ mathWorld:['国际数学建模竞赛',{2:[['一等奖',6],['二等奖',3],['三等奖',2]],3:[['一等奖',9],['二等奖',5.5],['三等奖',2.5]]}],
+ other:['其他符合学院规定的竞赛',{2:[],3:[]}]
+};
+const cultureCatalog={
+ literary:[
+ ['省市级及以上未获奖参与',1,true],['校院级未获奖参与',.5,true],
+ ['个人·省市一等奖及以上',3],['个人·省市二等奖',2.5],['个人·省市三等奖/校级一等奖',2],['个人·校级三等奖及以上/院级一等奖',1.5],['个人·院级三等奖及以上',1],
+ ['集体·省市一等奖及以上',1.5],['集体·省市二等奖',1.25],['集体·省市三等奖/校级一等奖',1],['集体·校级三等奖及以上/院级一等奖',.75],['集体·院级三等奖及以上',.5]
+ ],
+ sports:[
+ ['校院级体育队队长/裁判员',.8],['省市级及以上未获奖参与',1.2,true],['校院级未获奖参与',1,true],
+ ['校级竞技赛事个人第1名',3.5],['校级竞技赛事个人第2名',3],['校级竞技赛事个人第3名',2.5],['校级竞技赛事个人第4名',2],['校级竞技赛事个人第5名',1.7],['校级竞技赛事个人第6名',1.5],
+ ['个人·省市一等奖及以上',5],['个人·省市二等奖',4.5],['个人·省市三等奖/校级一等奖',3.5],['个人·校级三等奖及以上/院级一等奖',2.5],['个人·院级三等奖及以上',1.5],
+ ['集体·省市一等奖及以上',2.5],['集体·省市二等奖',2.25],['集体·省市三等奖/校级一等奖',1.75],['集体·校级三等奖及以上/院级一等奖',1.25],['集体·院级三等奖及以上',.75]
+ ],
+ honor:[['国家级荣誉称号',3],['省级荣誉称号',2.5],['市级荣誉称号',2],['校优秀共产党员',2],['校优秀团员/优秀研究生干部等',1]],
+ media:[['省级及以上报刊杂志',2],['省级及以上网站',1.5],['校级网站',1],['其他院校二级网站或公众号',.5]]
+};
+const cultureNames={literary:'文艺活动',sports:'体育活动',honor:'荣誉称号',media:'媒体撰稿'};
+function contestChoices(x){return contestCatalog[x.event]?.[1][state.preset.startsWith('y3')?3:2]||[];}
+const colors=['#7548c9','#2865cb','#0d9b7b','#dd8d1a','#e05261','#738094'];
+const STORE='nepu-scholar-score-v2';
+let state={version:2,preset:'y2p',byPreset:{}},selected=2,tab='paper',ethicsTab='moral',cultureTab='literary',storageAvailable=true;
+function blank(){return {values:{},records:[],custom:null};}
+function current(){return state.byPreset[state.preset]||(state.byPreset[state.preset]=blank());}
+function items(){return current().custom||presets[state.preset].map(key=>Object.assign({key},groups[key]));}
+function save(){
+ try{localStorage.setItem(STORE,JSON.stringify(state));$('storageStatus').textContent='已自动保存到当前浏览器。需要换浏览器或电脑时，请下载数据备份。';storageAvailable=true;}
+ catch(e){storageAvailable=false;$('storageStatus').textContent='当前浏览器不允许本地保存。请点击“下载数据备份”，下次用“导入备份”恢复。';}
+}
+function load(){
+ try{const old=JSON.parse(localStorage.getItem(STORE)||'null');if(old&&old.version===2&&old.byPreset&&presets[old.preset])state=old;}catch(e){}
+ migrateState(state);
+ $('preset').value=state.preset;
+ if(!state.byPreset[state.preset])state.byPreset[state.preset]=blank();
+ selected=Math.min(selected,items().length-1);render();
+}
+function migrateState(source){
+ for(const saved of Object.values(source.byPreset||{})){
+  if(!saved||!saved.values)continue;
+  if(!Array.isArray(saved.records))saved.records=[];
+  const legacy=[['literary',5],['sports',6],['honor',7],['media',8]];
+  legacy.forEach(([section,index])=>{
+   const key='ethics:'+index;
+   if(Object.prototype.hasOwnProperty.call(saved.values,key)){
+    const points=Number(saved.values[key])||0;
+    if(points>0)saved.records.push({id:'legacy:'+section+':'+Math.random(),kind:'culture',section,event:'legacy',name:'旧版手动分数（请替换成具体活动或材料名称）',points,eligible:true});
+    delete saved.values[key];
+   }
+  });
+ }
+}
+function E(tag,attrs,parent){
+ const el=document.createElement(tag);
+ if(attrs)Object.keys(attrs).forEach(k=>{if(k==='text')el.textContent=attrs[k];else if(k==='class')el.className=attrs[k];else el.setAttribute(k,attrs[k]);});
+ if(parent)parent.appendChild(el);return el;
+}
+function caption(parent,t){return E('p',{class:'note',text:t},parent);}
+function control(parent,title,value,onChange,type='text',max){
+ const box=E('label',null,parent);E('strong',{text:title},box);
+ const el=E('input',{type,value:String(value??'')},box);
+ if(type==='number'){el.min='0';el.step='any';if(max!=null)el.max=String(max);}
+ el.addEventListener('input',()=>{onChange(el.value);refreshScore();});
+ return el;
+}
+function options(parent,title,choices,value,onChange){
+ const box=E('label',null,parent);E('strong',{text:title},box);const el=E('select',null,box);
+ choices.forEach(([v,label])=>{const o=E('option',{value:String(v),text:String(label)},el);if(String(v)===String(value))o.selected=true;});
+ el.addEventListener('change',()=>{onChange(el.value);refreshScore();});return el;
+}
+function resultScore(item,detail){
+ if(item.kind==='ethics'){
+  const moral=item.leaves.reduce((s,r,i)=>s+safe(current().values[item.key+':'+i],r[1]),0);
+  const c=cultureScore(),activities=Math.min(7,c.literary+c.sports);
+  return {value:Math.min(30,moral+activities+c.honor+c.media),notes:[
+   '德育素质 '+money(moral)+' / 17',
+   '文艺 '+money(c.literary)+' ＋ 体育 '+money(c.sports)+' → 合计 '+money(activities)+' / 7',
+   '荣誉称号 '+money(c.honor)+' / 3',
+   '媒体撰稿 '+money(c.media)+' / 3',
+   '文化体育素质 '+money(activities+c.honor+c.media)+' / 13'
+  ]};
+ }
+ if(item.kind==='leaves'){
+  const rows=item.leaves||[];let parts=rows.map((r,i)=>safe(current().values[item.key+':'+i],r[1]));
+  return {value:Math.min(item.max,parts.reduce((a,b)=>a+b,0)),notes:[]};
+ }
+ if(item.kind==='course'||item.kind==='language'){
+  const raw=current().values;
+  const course=item.kind==='course'?safe(raw.courseFinal,70)*.5:0;
+  const lang=raw.lang||'en',exam=Number(raw.exam)||0,examMax=lang==='en'?710:100,threshold=lang==='en'?425:60;
+  const six=exam>=threshold?Math.min(3.5,Math.max(0,exam)/examMax*3.5):0;
+  return {value:Math.min(item.max,course+six),notes:[...(item.kind==='course'?['课程 '+money(course)+' / 35']:[]),'外语 '+money(six)+' / 3.5']};
+ }
+ const rec=current().records.filter(x=>(item.kind==='research'&&['paper','patent','software'].includes(x.kind))||(item.kind==='contest'&&x.kind==='contest')||(item.kind==='combined'&&['paper','patent','software','contest'].includes(x.kind))||(item.kind==='exchange'&&x.kind==='exchange'));
+ const by={paper:0,patent:0,utility:0,software:0,contest:0,math:0,exchange:0};
+ const paperCaps={core:0,conference:0,foreign:0};
+ const seen={};
+ for(const x of rec){
+  if(!x.eligible)continue;
+  let points=0,category=x.kind;
+  if(x.kind==='paper'){
+   const p=papers[Number(x.option)];points=p?p[1]:0;
+   const cap=Number(x.option)===13?'core':Number(x.option)===15?'conference':Number(x.option)===16?'foreign':null;
+   if(cap){const limit=cap==='foreign'?4:5;points=Math.max(0,Math.min(points,limit-paperCaps[cap]));paperCaps[cap]+=points;}
+  }else if(x.kind==='patent'){
+   const p=patentOptions[Number(x.option)];points=p?p[2]:0;
+   if(p&&p[0].startsWith('实用'))category='utility';
+  }else if(x.kind==='software')points=2;
+  else if(x.kind==='contest'){
+   if(!x.name?.trim())continue;
+   if(x.event==='other')points=safe(x.points,100);
+   else points=contestChoices(x).find(v=>v[0]===x.award)?.[1]||0;
+   if(x.event==='mathCN'||x.event==='mathWorld')category='math';
+  }else if(x.kind==='exchange'){
+   const y3=state.preset.startsWith('y3');points=({international:y3?3:1.5,domestic:y3?2:1,internal:y3?1.5:.5})[x.event]||0;
+  }
+  // 同类、同名成果只按最高有效阶段或等级计入。
+  const normalized=(x.name||'').trim().toLocaleLowerCase();
+  if(normalized && ['patent','contest'].includes(x.kind)){
+   const token=x.kind+':'+normalized;
+   const previous=seen[token];
+   if(previous){by[previous.kind]-=previous.points;if(points<=previous.points){by[previous.kind]+=previous.points;continue;}}
+   seen[token]={kind:category,points};
+  }
+  by[category]+=points;
+ }
+ by.utility=Math.min(by.utility,6);by.software=Math.min(by.software,2);
+ by.contest+=Math.min(by.math,state.preset.startsWith('y3')?9:6);
+ const research=by.paper+by.patent+by.utility+by.software;
+ const raw=item.kind==='research'?research:item.kind==='contest'?by.contest:item.kind==='exchange'?by.exchange:research+by.contest;
+ const notes=['论文 '+money(by.paper),'发明/国际专利 '+money(by.patent),'实用新型 '+money(by.utility)+' / 6','软著 '+money(by.software)+' / 2'];
+ if(item.kind==='combined'||item.kind==='contest')notes.push('竞赛 '+money(by.contest));
+ if(item.kind==='exchange')return {value:Math.min(item.max,raw),notes:['学术交流原始累计 '+money(by.exchange)]};
+ return {value:Math.min(item.max,raw),notes};
+}
+function cultureScore(){
+ const totals={literary:0,sports:0,honor:0,media:0},unawarded={literary:0,sports:0},seen=new Map();
+ for(const x of current().records){
+  if(x.kind!=='culture'||!x.eligible||!totals.hasOwnProperty(x.section)||!x.name?.trim())continue;
+  const spec=cultureCatalog[x.section]?.[Number(x.option)];
+  const points=x.event==='legacy'?safe(x.points,30):(spec?.[1]||0);
+  const unawardedFlag=x.event!=='legacy'&&!!spec?.[2];
+  const key=x.section+':'+x.name.trim().toLocaleLowerCase();
+  const prior=seen.get(key);
+  if(prior&&prior.points>=points)continue;
+  seen.set(key,{section:x.section,points,unawarded:unawardedFlag});
+ }
+ for(const x of seen.values()){
+  if(x.unawarded)unawarded[x.section]+=x.points;
+  else totals[x.section]+=x.points;
+ }
+ for(const part of ['literary','sports'])totals[part]+=Math.min(1.5,unawarded[part]);
+ totals.honor=Math.min(3,totals.honor);totals.media=Math.min(3,totals.media);
+ return totals;
+}
+function score(item){return resultScore(item).value;}
+function refreshScore(){
+ const arr=items(),total=arr.reduce((s,x)=>s+score(x),0),sum=arr.reduce((s,x)=>s+x.max,0);
+ $('total').textContent=money(total);$('summary').textContent='已获 '+money(total)+' 分 · 权重合计 '+money(sum)+' 分';
+ Array.from($('bar').children).forEach((seg,i)=>{
+  const x=arr[i],s=score(x);seg.querySelector('.fill').style.width=(s/x.max*100)+'%';
+  seg.querySelector('.segscore').textContent=x.max>=5?money(s)+' / '+x.max:'';
+  seg.querySelector('.tip').textContent=x.name+'：'+money(s)+' / '+x.max+' 分。'+(x.details?.[0]||'');
+  seg.setAttribute('aria-label',x.name+' '+money(s)+' / '+x.max+' 分');
+ });
+ const x=arr[selected];if(x){$('itemScore').textContent=money(score(x))+' / '+x.max+' 分';$('breakdown').textContent=resultScore(x).notes.join('\n')||'按各分项上限汇总。';}
+ save();
+}
+function render(){
+ const arr=items();selected=Math.min(Math.max(selected,0),arr.length-1);
+ const bar=$('bar');bar.replaceChildren();let max=arr.reduce((a,x)=>a+x.max,0);
+ arr.forEach((x,i)=>{
+  const seg=E('button',{type:'button',class:'seg'+(i===selected?' active':'')},bar);
+  seg.style.width=(x.max/max*100)+'%';
+  const f=E('span',{class:'fill'},seg);f.style.background=colors[i%colors.length];
+  E('span',{class:'segtext',text:x.max>=6?x.name:''},seg);
+  E('span',{class:'segscore'},seg);E('span',{class:'tip'},seg);
+  seg.addEventListener('click',()=>{selected=i;tab='paper';render();});
+ });
+ const item=arr[selected];$('itemTitle').textContent=item.name;
+ const r=$('rules');r.replaceChildren();const ul=E('ul',{class:'rulelist'},r);
+ (item.details||[]).forEach(t=>E('li',{text:t},ul));caption(r,'分项输入是自行估算；最终以学院公示及证明材料审核结果为准。');
+ if(item.kind==='ethics'){
+  if(ethicsTab==='culture'){
+   E('h3',{text:cultureNames[cultureTab]+'赋分选项'},r);
+   const rates=E('ul',{class:'rulelist'},r);
+   cultureCatalog[cultureTab].forEach(row=>E('li',{text:row[0]+'：'+row[1]+'分'+(row[2]?'（未获奖参与有单独上限）':'')},rates));
+  }else{
+   E('h3',{text:'德育素质五项上限'},r);
+   const rates=E('ul',{class:'rulelist'},r);
+   item.leaves.forEach(row=>E('li',{text:row[0]+'：'+row[1]+'分。'+row[2]},rates));
+  }
+ }
+ if(item.kind==='contest'||item.kind==='combined'){
+  E('h3',{text:'可选赛事'},r);
+  const matches=E('ul',{class:'rulelist'},r);
+  Object.values(contestCatalog).forEach(row=>E('li',{text:row[0]},matches));
+  caption(r,'赛事奖项分值随研二、研三模板切换；“其他赛事”须由学院参照认定。');
+ }
+ const area=$('itemContent');area.replaceChildren();
+ if(item.kind==='course'||item.kind==='language')renderCourse(area,item);
+ else if(item.kind==='ethics')renderEthics(area,item);
+ else if(item.kind==='leaves')renderLeaves(area,item);
+ else if(['research','combined','contest','exchange'].includes(item.kind))renderRecords(area,item);
+ else renderCustom(area,item);
+ refreshScore();
+}
+function renderCourse(area,item){
+ const g=E('div',{class:'formgrid'},area);const v=current().values;
+ if(item.kind==='course')control(g,'研究生部核算的最终课程学习分（0—70）',v.courseFinal||'',s=>v.courseFinal=s,'number',70);
+ options(g,'外语种类',[['en','英语六级'],['ru','俄语六级'],['ja','日语六级']],v.lang||'en',s=>{v.lang=s;render();});
+ control(g,'考试分数（英语满分710；俄语/日语按100估算）',v.exam||'',s=>v.exam=s,'number');
+ caption(area,'课程分取研究生部核算结果；语言仅记录一种最高有效成绩。');
+}
+function renderLeaves(area,item){
+ const values=current().values;
+ (item.leaves||[]).forEach((r,i)=>{
+  const box=E('div',{class:'entry'},area),key=item.key+':'+i;
+  control(box,r[0]+'（上限 '+r[1]+' 分）',values[key]??'',s=>values[key]=s,'number',r[1]);
+  caption(box,r[2]);
+ });
+}
+function renderEthics(area,item){
+ const level2=E('div',{class:'tabs'},area);
+ [['moral','德育素质 · 17分'],['culture','文化体育素质 · 13分']].forEach(([key,name])=>{
+  const b=E('button',{type:'button',class:ethicsTab===key?'active':'',text:name},level2);
+  b.addEventListener('click',()=>{ethicsTab=key;render();});
+ });
+ if(ethicsTab==='moral'){
+  caption(area,'德育素质按下列五项记录核定分；各项上限合计17分。');
+  renderLeaves(area,item);
+  return;
+ }
+ const level3=E('div',{class:'tabs subtabs'},area);
+ Object.entries(cultureNames).forEach(([key,name])=>{
+  const label=name+(key==='literary'||key==='sports'?' · 与另一项合计7分':key==='honor'?' · 3分':' · 3分');
+  const b=E('button',{type:'button',class:cultureTab===key?'active':'',text:label},level3);
+  b.addEventListener('click',()=>{cultureTab=key;render();});
+ });
+ const summary=cultureScore(),line=E('div',{class:'sectionline'},area);
+ E('strong',{text:cultureNames[cultureTab]},line);
+ E('span',{class:'metric',text:money(summary[cultureTab])+' 分'+(cultureTab==='literary'||cultureTab==='sports'?' · 两项合计上限7分':' / 3分')},line);
+ const subset=current().records.filter(x=>x.kind==='culture'&&x.section===cultureTab);
+ if(!subset.length)caption(area,'还没有记录。添加后可填写参加项目或材料名称、选择级别及奖项。');
+ subset.forEach((x,i)=>renderCultureRecord(area,x,i));
+ const add=E('button',{type:'button',class:'primary',text:'＋ 添加'+cultureNames[cultureTab]+'记录'},area);
+ add.addEventListener('click',()=>{current().records.push({id:Date.now()+':'+Math.random(),kind:'culture',section:cultureTab,name:'',option:0,eligible:false});render();});
+ caption(area,cultureTab==='literary'||cultureTab==='sports'
+  ?'未获奖参与在文艺、体育中各自最多计1.5分；获奖和参加同一项目只计最高层次，文艺与体育总计最多7分。'
+  :'同一荣誉或同一稿件按最高有效级别计分；请留存证书、刊发链接等材料。');
+}
+function renderCultureRecord(area,x,i){
+ const box=E('div',{class:'entry'},area),head=E('div',{class:'entryhead'},box);
+ E('strong',{text:x.name||'第 '+(i+1)+' 项'},head);
+ const remove=E('button',{type:'button',class:'small danger',text:'删除'},head);
+ remove.addEventListener('click',()=>{current().records=current().records.filter(r=>r.id!==x.id);render();});
+ const grid=E('div',{class:'formgrid'},box);
+ control(grid,x.section==='media'?'稿件标题 / 刊发处':x.section==='honor'?'荣誉称号名称':'参加的活动 / 比赛名称',x.name||'',s=>{
+  x.name=s;head.querySelector('strong').textContent=s||'第 '+(i+1)+' 项';
+ });
+ if(x.event==='legacy'){
+  control(grid,'旧版手动分数（请核对并改填为具体奖项）',x.points||'',s=>x.points=s,'number',30);
+  caption(box,'这是旧版录入数据，保留以免丢分。建议删除本项，再按实际材料添加具体记录。');
+ }else options(grid,'参与级别 / 获奖情况',cultureCatalog[x.section].map((v,j)=>[j,v[0]+' · '+v[1]+'分']),x.option,s=>x.option=Number(s));
+ const check=E('label',{class:'check wide'},grid);
+ const cb=E('input',{type:'checkbox'},check);cb.checked=!!x.eligible;
+ E('span',{text:'材料满足认定条件，计入估算'},check);
+ cb.addEventListener('change',()=>{x.eligible=cb.checked;refreshScore();});
+ const amt=E('div',{class:'metric'},box);
+ const update=()=>{amt.textContent='单项预计 '+money(pointFor(x))+' 分'+(!x.name?.trim()?'（请填写名称）':x.eligible?'':'（暂不计入）');};
+ grid.addEventListener('input',update);grid.addEventListener('change',update);update();
+}
+function renderCustom(area,item){
+ const key=item.key+':manual',values=current().values;
+ control(area,'该项目核定分数（上限 '+item.max+' 分）',values[key]??'',s=>values[key]=s,'number',item.max);
+ caption(area,'自定义项目采用分项手动记分；内置项目支持自动换算。');
+}
+function renderRecords(area,item){
+ const kinds=item.kind==='research'?['paper','patent','software']:item.kind==='contest'?['contest']:item.kind==='exchange'?['exchange']:['paper','patent','software','contest'];
+ const names={paper:'发表论文',patent:'专利',software:'软件著作权',contest:'学科竞赛',exchange:'学术交流'};
+ if(!kinds.includes(tab))tab=kinds[0];
+ const tabs=E('div',{class:'tabs'},area);
+ kinds.forEach(kind=>{const b=E('button',{type:'button',class:kind===tab?'active':'',text:names[kind]},tabs);b.addEventListener('click',()=>{tab=kind;render();});});
+ const subset=current().records.filter(x=>x.kind===tab);
+ if(!subset.length)caption(area,'还没有'+names[tab]+'记录。点击下方按钮添加一项。');
+ subset.forEach((x,i)=>renderRecord(area,x,i));
+ const add=E('button',{type:'button',class:'primary',text:'＋ 添加'+names[tab]},area);
+ add.addEventListener('click',()=>{
+  current().records.push({id:Date.now()+':'+Math.random(),kind:tab,name:'',option:0,eligible:false,event:tab==='contest'?'design':'international',award:tab==='contest'?'卓越杯':'',points:0});
+  render();
+ });
+ caption(area,'符合署名、单位、状态与证明要求后，勾选“满足认定条件”才计分。同名专利公开与授权仅取较高阶段。');
+}
+function renderRecord(area,x,i){
+ const box=E('div',{class:'entry'},area),header=E('div',{class:'entryhead'},box);
+ E('strong',{text:x.name||'第 '+(i+1)+' 项'},header);
+ const remove=E('button',{type:'button',class:'small danger',text:'删除'},header);
+ remove.addEventListener('click',()=>{current().records=current().records.filter(r=>r.id!==x.id);render();});
+ const grid=E('div',{class:'formgrid'},box);
+ control(grid,x.kind==='contest'?'作品 / 参赛项目名称':x.kind==='exchange'?'报告 / 学术活动名称':'成果名称 / 专利号',x.name,s=>{x.name=s;header.querySelector('strong').textContent=s||'第 '+(i+1)+' 项';},'text');
+ if(x.kind==='paper')options(grid,'收录类别和分区',papers.map((p,j)=>[j,p[0]+' · '+p[1]+'分']),x.option,s=>x.option=Number(s));
+ if(x.kind==='patent')options(grid,'类型、阶段和本人排名',patentOptions.map((p,j)=>[j,p[0]+' · 第'+p[1]+'发明人 · '+p[2]+'分']),x.option,s=>x.option=Number(s));
+ if(x.kind==='software')caption(grid,'已登记的软件著作权：每件2分，累计最高2分。');
+ if(x.kind==='contest'){
+  options(grid,'竞赛类型',Object.entries(contestCatalog).map(([key,v])=>[key,v[0]]),x.event,s=>{x.event=s;x.award=contestChoices(x)[0]?.[0]||'';render();});
+  if(x.event!=='other')options(grid,'奖项 / 等级',contestChoices(x).map(([award,points])=>[award,award+' · '+points+'分']),x.award,s=>x.award=s);
+  else control(grid,'参照赋分（学院审核后才可确定）',x.points||'',s=>x.points=s,'number');
+ }
+ if(x.kind==='exchange')options(grid,'交流类型',[['international','国际会议报告 / 论文宣读'],['domestic','国内会议报告 / 论文宣读'],['internal','院内主讲学术报告']],x.event,s=>x.event=s);
+ const check=E('label',{class:'check wide'},grid);
+ const checkbox=E('input',{type:'checkbox'},check);checkbox.checked=!!x.eligible;
+ E('span',{text:'满足学院认定条件，计入估算'},check);
+ checkbox.addEventListener('change',()=>{x.eligible=checkbox.checked;refreshScore();});
+ const amt=E('div',{class:'metric',text:'单项预计 '+money(pointFor(x))+' 分'+(x.eligible?'':'（暂不计入）')},box);
+ const adjust=()=>{amt.textContent='单项预计 '+money(pointFor(x))+' 分'+(x.eligible?'':'（暂不计入）');};
+ grid.addEventListener('input',adjust);grid.addEventListener('change',adjust);
+ if(x.kind==='paper')caption(box,'论文须满足前两名署名、导师通讯或第一署名、东北石油大学为第一署名单位等要求；在线发表和检索时点须核实。');
+ if(x.kind==='patent')caption(box,'发明专利前三名且导师共同发明；实用新型、国际专利仅前两名；东北石油大学须为第一专利权人。');
+ if(x.kind==='contest')caption(box,x.event==='other'?'其他赛事需符合细则引用的校级重要竞赛目录，由学院参照级别和奖项认定；自行填分仅供估算。':'同一关联赛事按最高层次计分；有效排名、参赛单位和备案材料须符合学院要求。');
+}
+function pointFor(x){
+ if(x.kind==='culture')return x.event==='legacy'?safe(x.points,30):cultureCatalog[x.section]?.[Number(x.option)]?.[1]||0;
+ if(x.kind==='paper')return papers[Number(x.option)]?.[1]||0;
+ if(x.kind==='patent')return patentOptions[Number(x.option)]?.[2]||0;
+ if(x.kind==='software')return 2;
+ if(x.kind==='contest')return x.event==='other'?safe(x.points,100):contestChoices(x).find(v=>v[0]===x.award)?.[1]||0;
+ if(x.kind==='exchange')return ({international:state.preset.startsWith('y3')?3:1.5,domestic:state.preset.startsWith('y3')?2:1,internal:state.preset.startsWith('y3')?1.5:.5})[x.event]||0;
+ return 0;
+}
+// Add manual custom items to the same scoring function without changing built-in rules.
+const builtScore=resultScore;
+resultScore=function(item){if(item.kind==='manual')return {value:safe(current().values[item.key+':manual'],item.max),notes:[]};return builtScore(item);};
+function configText(){return JSON.stringify(items().map(({name,max,details})=>({name,max,details})),null,2);}
+$('preset').addEventListener('change',e=>{state.preset=e.target.value;selected=0;tab='paper';render();});
+$('reset').addEventListener('click',()=>{if(!confirm('清空当前模板的全部记录和分数？其他模板不受影响。'))return;state.byPreset[state.preset]=blank();selected=0;render();});
+$('showConfig').addEventListener('click',()=>{$('config').value=configText();$('message').textContent='已显示当前配置。';});
+$('applyConfig').addEventListener('click',()=>{
+ try{
+  const input=JSON.parse($('config').value);
+  if(!Array.isArray(input)||!input.length||input.length>20)throw Error('请输入1—20个项目的数组。');
+  const arr=input.map((x,i)=>{const max=Number(x.max);if(!x||typeof x.name!=='string'||!x.name.trim()||!Number.isFinite(max)||max<=0)throw Error('第'+(i+1)+'项名称或上限无效。');return {key:'custom'+i,name:x.name.trim(),max,kind:'manual',details:Array.isArray(x.details)?x.details.map(String):[]};});
+  current().custom=arr;selected=0;render();$('message').textContent='已应用，总上限 '+money(arr.reduce((s,x)=>s+x.max,0))+' 分。';
+ }catch(e){$('message').textContent='无法应用：'+e.message;}
+});
+$('backup').addEventListener('click',()=>{
+ const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=E('a',{href:url,download:'石工院综测数据备份.json'},document.body);
+ a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
+});
+$('restore').addEventListener('change',async e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ try{const v=JSON.parse(await f.text());if(v.version!==2||!v.byPreset||!presets[v.preset])throw Error('不是此版本导出的备份');state=v;migrateState(state);$('preset').value=v.preset;selected=0;render();alert('备份导入成功。');}
+ catch(err){alert('无法导入：'+err.message);}finally{e.target.value='';}
+});
+load();
+</script></body></html>
